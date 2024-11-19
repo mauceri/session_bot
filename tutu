@@ -1,0 +1,8 @@
+// Fonction pour charger le mnémonique à partir du fichier de configuration
+function loadMnemonicFromConfigFile() { 
+    const content = fs.readFileSync(configFilePath, 'utf-8'); 
+    const match = content.match(/export SESSION_BOT_MNEMONIC="(.+?)"/); return 
+    match ? match[1] : null;
+}
+// Charger le mnémonique depuis la variable d'environnement ou le fichier de configuration
+let mnemonic = process.env.SESSION_BOT_MNEMONIC || loadMnemonicFromConfigFile();

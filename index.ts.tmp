@@ -1,0 +1,31 @@
+const { generateSeedHex } = require('@session.js/keypair'); const { encode } = 
+require('@session.js/mnemonic'); const { Session, ready, Poller } = 
+require('@session.js/client'); const fs = require('fs'); const path = require('path'); 
+const execSync = require('child_process').execSync; await ready;
+// Chemin vers le fichier de configuration
+const configFilePath = path.join(process.env.HOME, 'session_bot_config.sh');
+// Fonction pour sauvegarder le mnémonique dans un fichier dédié
+function saveMnemonicToConfigFile(mnemonic) { const envVarEntry = `export 
+    SESSION_BOT_MNEMONIC="${mnemonic}"\n`; fs.writeFileSync(configFilePath, envVarEntry);
+}
+// Charger le mnémonique depuis la variable d'environnement ou le fichier de configuration
+let mnemonic = process.env.SESSION_BOT_MNEMONIC;
+// Charger le fichier de configuration si la variable d'environnement n'est pas définie
+if (!mnemonic && fs.existsSync(configFilePath)) { execSync(`source ${configFilePath}`); 
+    mnemonic = process.env.SESSION_BOT_MNEMONIC;
+}
+// Si le mnémonique est toujours vide, on en génère un nouveau et on le sauvegarde
+if (!mnemonic) { mnemonic = encode(generateSeedHex()); console.log('Mnemonic généré pour ce bot :', mnemonic); saveMnemonicToConfigFile(mnemonic);
+} else {
+    console.log('Mnemonic trouvé dans SESSION_BOT_MNEMONIC');
+}
+// Configuration et démarrage du bot
+const session = new Session(); session.setMnemonic(mnemonic, 'My echo bot'); 
+console.log('Bot\'s Session ID:', session.getSessionID()); session.addPoller(new Poller()); 
+session.on('message', async message => {
+    const attachments = await Promise.all(message.attachments.map(async attachment => await 
+        session.getFile(attachment)
+    )); session.sendMessage({ to: message.from, text: message.text, attachments: 
+        attachments
+    });
+});

@@ -1,0 +1,3 @@
+plugins: "plugins.yaml"
+websocket_uri: "ws://localhost:8089"  # Connexion au serveur WebSocket de session_bot
+

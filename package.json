@@ -1,0 +1,21 @@
+{
+  "name": "simple-session-echo-bot",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@session.js/client": "^0.0.36",
+    "@session.js/keypair": "^1.0.2",
+    "@session.js/mnemonic": "^1.0.4",
+    "crypto-js": "^4.2.0",
+    "file-api": "^0.10.4"
+  }
+}
