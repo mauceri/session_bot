@@ -1,5 +1,5 @@
 import asyncio
-from bobot_plugin_manager import PluginManager
+from session_bot_plugin_manager import PluginManager
 
 
 

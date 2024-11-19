@@ -1,7 +1,7 @@
 plugins:
   - name : "test"
     package : "test_plugin"
-    url : "/home/mauceric/session/test_plugin/"
+    url : "/home/mauceric/session_bot/test_plugin/"
     enabled : true
   # - name : "perroquet"
   #   package : "perroquet"

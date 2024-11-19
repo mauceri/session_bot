@@ -54,7 +54,7 @@ wss.on('connection', (ws) => {
 console.log("Serveur WebSocket démarré sur le port 8089");
 
 // Chemin vers le fichier de configuration
-const configFilePath = path.join(process.env.HOME || '', 'session/session_bot_config.sh');
+const configFilePath = path.join(process.env.HOME || '', 'session_bot/session_bot_config.sh');
 console.log('Chemin du fichier de configuration:', configFilePath);
 
 // Fonction pour sauvegarder le mnémonique dans un fichier dédié
@@ -105,8 +105,7 @@ session.on('message', async (message) => {
  
         // Convertir l'ArrayBuffer en Base64
         const base64Content = await bufferToBase64(decryptedAttachment);
-        console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! name: ",attachment.name,"type: ",attachment.type)
-        console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! name: ",decryptedAttachment.name,"type: ",decryptedAttachment.type)
+        //console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! name: ",decryptedAttachment.name,"type: ",decryptedAttachment.type)
         decryptedAttachments.push({
             name: decryptedAttachment.name,
             type: decryptedAttachment.type,
