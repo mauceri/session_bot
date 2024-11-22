@@ -1,15 +1,16 @@
 plugins:
-  - name : "test"
-    package : "test_plugin"
+  - name : "testp"
+    package : "testp"
     url : "/home/mauceric/session_bot/test_plugin/"
+    enabled : false
+  - name : "phi_local"
+    package : "phi_local"
+    url : "/home/mauceric/session_bot/session_bot_phi_local"
     enabled : true
-  # - name : "perroquet"
-  #   package : "perroquet"
-  #   url : "https://github.com/mauceri/perroquet"
-  #   enabled : true
-  #   env:
-  #     - ANY_SCALE_API_KEY: "esecret_xa4u81rr938asp8am9j6a2t1gb"
-  #     - TURLU: "tutu"
+  - name : "phi_local"
+    package : "phi_local"
+    url : "https://github.com/mauceri/session_bot_phi_local"
+    enabled : false
   # - name : "commandes"
   #   package : "amicus_bot_commandes"
   #   url : "https://github.com/mauceri/amicus_bot_commandes"

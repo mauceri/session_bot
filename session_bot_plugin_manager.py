@@ -98,7 +98,7 @@ class PluginManager:
     def load_plugin(self, plugin_name, package, plugin_url, plugin_path):
         try:
             
-            logger.info(f"********************************* Chargement de {plugin_name}")
+            logger.info(f"********************************* Chargement de {plugin_name} !!! {plugin_path}")
             if plugin_name in self.plugins:
                 logger.info(f"Unoad {plugin_name}")
                 self.unload_plugin(plugin_name)
@@ -109,7 +109,6 @@ class PluginManager:
                 os.mkdir(self.data_dir)
             self.unload_plugin(plugin_name)
             sys.path.append(plugin_path)
-            logger.info(f"******************************** sys.path = {sys.path}")
 
             # Vérifiez si plugin_url est un chemin local ou une URL GitHub
             if os.path.isdir(plugin_url):
@@ -121,23 +120,33 @@ class PluginManager:
                 git.Repo.clone_from(plugin_url, plugin_path)
                 logger.info(f"********************************* Plugin {plugin_name} cloné depuis GitHub {plugin_url}")
 
-            print(f"plugin_path = {plugin_path}")
+            logger.info(f"plugin_path = {plugin_path}")
             #git.Repo.clone_from(plugin_url, plugin_path)
             subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
             subprocess.run([sys.executable, "-m", "pip", "install", "-e", plugin_path])
             logger.info(f"********************************* Import module {plugin_name}")
-            module = importlib.import_module("."+plugin_name,package=package)
+            logger.info(f"Trying to import module: .{plugin_name}, package: {package}, sys.path: {sys.path}")
+            #module = importlib.import_module("."+plugin_name,package=package)
+            sys.path.append('/home/mauceric/session_bot/plugins')
+            module = None
+            module = importlib.import_module(plugin_name)
+            logger.info(f"************   ***************** sys.path = {sys.path}")
+            logger.info(f"************   ***************** plugin_path = {plugin_path}")
+            #logger.info(f"************   ***************** sys.modules = {sys.modules}")
+            #module = importlib.import_module("."+plugin_name)
+            #module = importlib.import_module(plugin_name)
             logger.info(f"================================================ module {module} importé")
+            logger.info(f"££££££££££££££££££££££££££££££££££££££££££££££££ {dir(module)}")
             self.plugins[plugin_name] = module.Plugin(self)  # Assumer une classe Plugin standard
             self.plugins[plugin_name].start()
         except Exception as err:
             logger.debug(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Load plugin {err}")
             raise
         
-    def unload_plugin(self, plugin_name):
+    async def unload_plugin(self, plugin_name):
         if plugin_name in self.plugins:
 
-            self.plugins[plugin_name].stop()  # Méthode pour nettoyer le plugin
+            await self.plugins[plugin_name].stop()  # Méthode pour nettoyer le plugin
             del sys.modules[self.plugins[plugin_name].__module__]
             del self.plugins[plugin_name]
 
@@ -188,7 +197,7 @@ class PluginManager:
         msg = ' '.join(l[1:])
         
         #si un objet est indexé par le préfixe de la commande on l'utilise
-        print(f"****************************commande = {cmd1} et observers = {self.observers}")
+        #print(f"****************************commande = {cmd1} et observers = {self.observers}")
         o = None;
         try:
             o = self.observers[cmd1]
