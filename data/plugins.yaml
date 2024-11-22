@@ -2,7 +2,7 @@ plugins:
   - name : "testp"
     package : "testp"
     url : "/home/mauceric/session_bot/test_plugin/"
-    enabled : false
+    enabled : true
   - name : "phi_local"
     package : "phi_local"
     url : "/home/mauceric/session_bot/session_bot_phi_local"
