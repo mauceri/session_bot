@@ -6,11 +6,11 @@ plugins:
   - name : "phi_local"
     package : "phi_local"
     url : "/home/mauceric/session_bot/session_bot_phi_local"
-    enabled : true
+    enabled : false
   - name : "phi_local"
     package : "phi_local"
     url : "https://github.com/mauceri/session_bot_phi_local"
-    enabled : false
+    enabled : true
   # - name : "commandes"
   #   package : "amicus_bot_commandes"
   #   url : "https://github.com/mauceri/amicus_bot_commandes"

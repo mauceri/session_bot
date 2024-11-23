@@ -2,3 +2,7 @@ node_modules/
 *.pyc
 __pycache__/
 .env
+tmp/
+session_bot_config.sh
+session_bot_phi_local
+plugins/
