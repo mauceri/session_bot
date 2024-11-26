@@ -45,8 +45,8 @@ class PluginManager:
         self.plugins = {}
         self.root_dir = root_dir or os.getcwd()
         self.data_dir = os.path.join(self.root_dir, "data")
-        self.plugin_dir = os.path.join(self.root_dir, "plugins")
-
+        self.plugin_dir = os.path.join(self.root_dir, "plugins")    
+        sys.path.append(self.plugin_dir)
         # Construire les chemins en fonction du répertoire racine
         self.path_yaml_config = os.path.join(self.data_dir, "config.yaml")
         self.path_yaml_plugin = os.path.join(self.data_dir, "plugins.yaml")
@@ -62,7 +62,6 @@ class PluginManager:
 
         # Créer le répertoire temporaire s'il n'existe pas
         os.makedirs(self.tmp_dir, exist_ok=True)
-        logger.info(f"Le répertoire temporaire '{self.tmp_dir}' est prêt.")
 
         # Initialiser d'autres attributs si nécessaire
         self.observers = {}
@@ -98,7 +97,7 @@ class PluginManager:
     def load_plugin(self, plugin_name, package, plugin_url, plugin_path):
         try:
             
-            logger.info(f"********************************* Chargement de {plugin_name} !!! {plugin_path}")
+            logger.info(f"********************************* Chargement de {plugin_name} sur {plugin_path}")
             if plugin_name in self.plugins:
                 logger.info(f"Unoad {plugin_name}")
                 self.unload_plugin(plugin_name)
@@ -109,38 +108,26 @@ class PluginManager:
                 os.mkdir(self.data_dir)
             self.unload_plugin(plugin_name)
             sys.path.append(plugin_path)
-
+            
             # Vérifiez si plugin_url est un chemin local ou une URL GitHub
             if os.path.isdir(plugin_url):
                 # Cas d'un répertoire local
                 shutil.copytree(plugin_url, plugin_path)
-                logger.info(f"********************************* Plugin {plugin_name} copié depuis le répertoire local {plugin_url}")
+                #logger.info(f"********************************* Plugin {plugin_name} copié depuis le répertoire local {plugin_url}")
             else:
                 # Cas d'un dépôt GitHub
                 git.Repo.clone_from(plugin_url, plugin_path)
-                logger.info(f"********************************* Plugin {plugin_name} cloné depuis GitHub {plugin_url}")
+                #logger.info(f"********************************* Plugin {plugin_name} cloné depuis GitHub {plugin_url}")
 
-            logger.info(f"plugin_path = {plugin_path}")
-            #git.Repo.clone_from(plugin_url, plugin_path)
+            # Intallation du plugin qui doit toujours être un dépôt git contenant un package du nom du plugin
             subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
             subprocess.run([sys.executable, "-m", "pip", "install", "-e", plugin_path])
-            logger.info(f"********************************* Import module {plugin_name}")
-            logger.info(f"Trying to import module: .{plugin_name}, package: {package}, sys.path: {sys.path}")
-            #module = importlib.import_module("."+plugin_name,package=package)
-            sys.path.append('/home/mauceric/session_bot/plugins')
-            module = None
+            
             module = importlib.import_module(plugin_name)
-            logger.info(f"************   ***************** sys.path = {sys.path}")
-            logger.info(f"************   ***************** plugin_path = {plugin_path}")
-            #logger.info(f"************   ***************** sys.modules = {sys.modules}")
-            #module = importlib.import_module("."+plugin_name)
-            #module = importlib.import_module(plugin_name)
-            logger.info(f"================================================ module {module} importé")
-            logger.info(f"££££££££££££££££££££££££££££££££££££££££££££££££ {dir(module)}")
             self.plugins[plugin_name] = module.Plugin(self)  # Assumer une classe Plugin standard
             self.plugins[plugin_name].start()
         except Exception as err:
-            logger.debug(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Load plugin {err}")
+            logger.error(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Load plugin {err}")
             raise
         
     async def unload_plugin(self, plugin_name):
