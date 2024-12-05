@@ -118,12 +118,6 @@ class PluginManager:
             # Intallation du plugin qui doit toujours être un dépôt git contenant un package du nom du plugin
             subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
             subprocess.run([sys.executable, "-m", "pip", "install", "-v", "-e", plugin_path])
-            try:
-                import towhee
-                logger.info(f"towhee installed successfully")
-            except ImportError:
-                logger.error("Failed to import towhee after installation attempt.")
-            logger.info(f"àààààààààààààààààààààà {sys.path}")
             module = importlib.import_module(plugin_name)
             self.plugins[plugin_name] = module.Plugin(self)  # Assumer une classe Plugin standard
             self.plugins[plugin_name].start()
