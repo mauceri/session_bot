@@ -27,13 +27,10 @@ wss.on('connection', (ws) => {
     bobotSocket = ws;
 
     ws.on('message', async (data) => {
-        console.log("+++++++++++++++++++++++++++ Message reçu de bobot via WebSocket:");
-
+        console.log("Message reçu via WebSocket:");
         const { from, text, frombobot, attachments } = JSON.parse(data.toString());
-        console.log("$$$$$$$$$$$$$$$$$$$$$$",from,text,frombobot)
         const fileAttachments = attachments.map(attachment => {
             const r = base64ToFile(attachment.content, attachment.name, attachment.type);
-            console.log("******************************************** before send ",r)
             return r;
         });
         // Envoyer le message via Session
@@ -42,7 +39,7 @@ wss.on('connection', (ws) => {
     });
 
     ws.on('close', (code, reason) => {
-       console.log("Client WebSocket déconnecté.",code,reason);
+        console.log("Client WebSocket déconnecté.",code,reason);
         bobotSocket = null;
     });
 
@@ -105,7 +102,6 @@ session.on('message', async (message) => {
  
         // Convertir l'ArrayBuffer en Base64
         const base64Content = await bufferToBase64(decryptedAttachment);
-        //console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! name: ",decryptedAttachment.name,"type: ",decryptedAttachment.type)
         decryptedAttachments.push({
             name: decryptedAttachment.name,
             type: decryptedAttachment.type,

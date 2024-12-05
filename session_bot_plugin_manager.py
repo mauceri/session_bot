@@ -58,7 +58,7 @@ class PluginManager:
                 logger.info(f"config = {self.config}")
     
         self.tmp_dir = os.path.join(self.root_dir, "tmp")
-        logger.info("****************** Chargement des plugins")
+        #logger.info("****************** Chargement des plugins")
 
         # Créer le répertoire temporaire s'il n'existe pas
         os.makedirs(self.tmp_dir, exist_ok=True)
@@ -85,18 +85,14 @@ class PluginManager:
                     for env in  plugin['env']:
                         key, val = next(iter(env.items())) 
                         os.environ[key]=val
-                        print(f"****************** {key}={os.getenv(key)}")
                 if plugin['enabled']:
-                    logger.info(f"++++++++++++++++++++++++++++++{name} is enabled")
                     self.load_plugin(name,package,url,os.path.join(self.plugin_dir, name))
                 else:
-                    logger.info(f"++++++++++++++++++++++++++++++{name} is disabled")
                     self.unload_plugin(name)
 
 
     def load_plugin(self, plugin_name, package, plugin_url, plugin_path):
         try:
-            
             logger.info(f"********************************* Chargement de {plugin_name} sur {plugin_path}")
             if plugin_name in self.plugins:
                 logger.info(f"Unoad {plugin_name}")
@@ -108,26 +104,31 @@ class PluginManager:
                 os.mkdir(self.data_dir)
             self.unload_plugin(plugin_name)
             sys.path.append(plugin_path)
-            
-            # Vérifiez si plugin_url est un chemin local ou une URL GitHub
+            sys.path.append(os.path.join(plugin_path, plugin_name))
+            logger.info(f"àààààààààààààààààààààà {sys.path}")
+
+            # Vérifier si plugin_url est un chemin local ou une URL GitHub
             if os.path.isdir(plugin_url):
                 # Cas d'un répertoire local
                 shutil.copytree(plugin_url, plugin_path)
-                #logger.info(f"********************************* Plugin {plugin_name} copié depuis le répertoire local {plugin_url}")
             else:
                 # Cas d'un dépôt GitHub
                 git.Repo.clone_from(plugin_url, plugin_path)
-                #logger.info(f"********************************* Plugin {plugin_name} cloné depuis GitHub {plugin_url}")
 
             # Intallation du plugin qui doit toujours être un dépôt git contenant un package du nom du plugin
             subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-            subprocess.run([sys.executable, "-m", "pip", "install", "-e", plugin_path])
-            
+            subprocess.run([sys.executable, "-m", "pip", "install", "-v", "-e", plugin_path])
+            try:
+                import towhee
+                logger.info(f"towhee installed successfully")
+            except ImportError:
+                logger.error("Failed to import towhee after installation attempt.")
+            logger.info(f"àààààààààààààààààààààà {sys.path}")
             module = importlib.import_module(plugin_name)
             self.plugins[plugin_name] = module.Plugin(self)  # Assumer une classe Plugin standard
             self.plugins[plugin_name].start()
         except Exception as err:
-            logger.error(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Load plugin {err}")
+            logger.error(f"Load plugin {err}")
             raise
         
     async def unload_plugin(self, plugin_name):
@@ -143,7 +144,6 @@ class PluginManager:
      
     def subscribe(self, observer: IObserver):
         logger.info(f"***************************Subscribe {observer.prefix()}")
-        print(f"***************************Subscribe {observer.prefix()}")
         self.observers[observer.prefix()] = observer
 
     def unsubscribe(self, observer: IObserver):
@@ -189,7 +189,7 @@ class PluginManager:
         try:
             o = self.observers[cmd1]
         except:
-            logger.warning(f"****************************** {cmd1} introuvable essayons perroquet")
+            logger.warning(f"****************************** {cmd1} introuvable")
         if o != None:
             message['text'] = msg
             await o.notify(msg,to, attachments)
@@ -200,25 +200,14 @@ class PluginManager:
     async def handle_message(self):
     
         await self.initialize_websocket()
-        logger.info(f"Aqui")
+        logger.info(f"Prêt !")
         try:
-             while True:
+            while True:
                 # Écouter les messages de session_bot
                 data = await self.websocket.recv()
 
                 message = json.loads(data)
                 logger.info(f"Message reçu de type {type(data)}")
-
-
-                # Postfixer le texte par "bobot" et conserver l'identifiant
-                message["text"] = f"{message['text']}"
-                message["frombobot"] = True
-
-                destinataire = message["to"]
-                expediteur = message["from"]
-                texte = message["text"]
-                attachments = message["attachments"]
-                logger.info(f"to: {destinataire}, from: {expediteur}, text: {texte}, ")
                 await self.message(message)
         except websockets.exceptions.ConnectionClosed as e:
             print(f"Connexion WebSocket fermée. Code: {e.code}, Raison: {e.reason}")
