@@ -14,6 +14,10 @@ plugins:
   - name : "signets"
     package : "signets"
     url : "https://github.com/mauceri/session_bot_signets"
+    enabled : false
+  - name : "collect"
+    package : "collect"
+    url : "https://github.com/mauceri/session_bot_collect"
     enabled : true
   # - name : "commandes"
   #   package : "amicus_bot_commandes"
