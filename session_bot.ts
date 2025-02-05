@@ -16,7 +16,7 @@ await ready;
 // Configurer le WebSocket Server pour écouter les messages de bobot
 const wss = new WebSocketServer({ 
     port: 8089,
-    maxPayload: 10 * 1024 * 1024 // Limite augmentée à 10 Mo (ça ne marche pas je suis tjrs limité à 1 Mo)
+    //maxPayload: 10 * 1024 * 1024 // Limite augmentée à 10 Mo (ça ne marche pas je suis tjrs limité à 1 Mo)
     });
 let bobotSocket: WebSocket | null = null; // Stocke la connexion WebSocket avec bobot
 
@@ -121,7 +121,7 @@ session.on('message', async (message) => {
             attachments: decryptedAttachments
         };
 
-        //console.log("Message envoyé à bobot:", JSON.stringify(messageToSend));
+        console.log("Message envoyé à bobot:", JSON.stringify(messageToSend));
         bobotSocket.send(JSON.stringify(messageToSend));
     } else {
         //console.log("Aucun client WebSocket connecté pour recevoir le message.");

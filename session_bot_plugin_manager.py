@@ -168,7 +168,7 @@ class PluginManager:
         msg = message['text']
         to = message['to']
         attachments = message['attachments']
-        logger.info(f"message reçu {msg}")
+        logger.info(f"message reçu {msg} {attachments}")
 
         # Extract the message text
         l = msg.split(' ')
