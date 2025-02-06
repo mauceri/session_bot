@@ -1,66 +1,88 @@
-// session_bot.ts
-
 import { generateSeedHex } from '@session.js/keypair';
 import { encode } from '@session.js/mnemonic';
 import { Session, ready, Poller } from '@session.js/client';
+import { createServer } from "net";
+import { createConnection } from "net";
 
 import path from 'path';
-import WebSocket, { WebSocketServer } from 'ws';
-import { randomBytes, createCipheriv, createDecipheriv, createHash } from 'crypto';
 import * as fs from 'fs';
+
+// Définition du chemin de la Unix Socket
+const SOCKET_PATH = "/tmp/session_bot.sock";
 
 
 // Attendre que les modules soient prêts
 await ready;
+// Création de la session
+const session = new Session();
 
-// Configurer le WebSocket Server pour écouter les messages de bobot
-const wss = new WebSocketServer({ 
-    port: 8089,
-    //maxPayload: 10 * 1024 * 1024 // Limite augmentée à 10 Mo (ça ne marche pas je suis tjrs limité à 1 Mo)
+// Supprimer l'ancienne socket si elle existe déjà
+try {
+    if (fs.existsSync(SOCKET_PATH)) {
+        fs.unlinkSync(SOCKET_PATH);
+    }
+} catch (e) {
+    console.error("❌ Erreur lors de la suppression du fichier socket:", e);
+}
+
+
+
+// 📌 Démarrer un serveur IPC UNIX
+let bobotSocket: any = null;  // Stocker la connexion active
+
+// 📌 Démarrer un serveur IPC UNIX qui garde la connexion ouverte
+const server = createServer((socket) => {
+    console.log("📩 Connexion entrante sur le socket IPC !");
+    
+    bobotSocket = socket;  // Stocker la connexion
+
+    socket.on("data", async (data) => {
+        // Analyser le message reçu
+            const { from, text, attachments } = JSON.parse(data.toString());
+            console.log("📩 Message reçu de `session_bot.py` :", text,"from ",from);
+    
+    
+            // 📤 Envoyer le message via Session
+            const fileAttachments = attachments.map(attachment => base64ToFile(attachment.content, attachment.name, attachment.type));
+    
+            await session.sendMessage({ to: from, text: text, attachments: fileAttachments });
     });
-let bobotSocket: WebSocket | null = null; // Stocke la connexion WebSocket avec bobot
 
-wss.on('connection', (ws) => {
-    console.log("Nouveau client WebSocket connecté.");
-
-    // Stocker la connexion pour pouvoir envoyer des messages plus tard
-    bobotSocket = ws;
-
-    ws.on('message', async (data) => {
-        console.log("Message reçu via WebSocket:");
-        const { from, text, frombobot, attachments } = JSON.parse(data.toString());
-        const fileAttachments = attachments.map(attachment => {
-            const r = base64ToFile(attachment.content, attachment.name, attachment.type);
-            return r;
-        });
-        // Envoyer le message via Session
-        
-        await session.sendMessage({to: from,text: text, attachments: fileAttachments});
+    socket.on("end", () => {
+        console.log("🚪 Connexion IPC fermée par le client.");
+        bobotSocket = null;  // Réinitialiser la connexion
     });
 
-    ws.on('close', (code, reason) => {
-        console.log("Client WebSocket déconnecté.",code,reason);
-        bobotSocket = null;
-    });
-
-    ws.on('error', (err) => {
-        console.error('Erreur WebSocket:', err);
+    socket.on("error", (err) => {
+        console.error("❌ Erreur sur la socket IPC :", err);
     });
 });
 
-console.log("Serveur WebSocket démarré sur le port 8089");
 
-// Chemin vers le fichier de configuration
+// 📌 Fonction pour envoyer un message à `session_bot.py`
+function sendToPython(message) {
+    if (bobotSocket) {
+        bobotSocket.write(JSON.stringify(message) + "\n");
+        console.log("📨 Message envoyé à `session_bot.py` :", message);
+    } else {
+        console.error("🚨 Aucun client IPC connecté !");
+    }
+}
+
+server.listen(SOCKET_PATH, () => {
+    console.log(`✅ Serveur IPC UNIX démarré sur ${SOCKET_PATH}`);
+});
+// Configuration de Session
 const configFilePath = path.join(process.env.HOME || '', 'session_bot/session_bot_config.sh');
-console.log('Chemin du fichier de configuration:', configFilePath);
+console.log('📌 Chemin du fichier de configuration:', configFilePath);
 
-// Fonction pour sauvegarder le mnémonique dans un fichier dédié
+// Fonction pour sauvegarder le mnémonique
 function saveMnemonicToConfigFile(mnemonic: string) {
     const envVarEntry = `export SESSION_BOT_MNEMONIC="${mnemonic}"\n`;
     fs.writeFileSync(configFilePath, envVarEntry);
 }
 
-// Fonction pour charger le mnémonique à partir du fichier de configuration
+// Charger le mnémonique depuis le fichier de configuration
 function loadMnemonicFromConfigFile() {
     if (fs.existsSync(configFilePath)) {
         const content = fs.readFileSync(configFilePath, 'utf-8');
@@ -70,37 +92,53 @@ function loadMnemonicFromConfigFile() {
     return null;
 }
 
-// Charger le mnémonique depuis la variable d'environnement ou le fichier de configuration
+// Initialisation du bot Session
 let mnemonic = process.env.SESSION_BOT_MNEMONIC || loadMnemonicFromConfigFile();
-
 if (!mnemonic) {
     mnemonic = encode(generateSeedHex());
-    console.log('Mnemonic généré pour ce bot :', mnemonic);
+    console.log('🔑 Mnemonic généré pour ce bot :', mnemonic);
     saveMnemonicToConfigFile(mnemonic);
 } else {
-    console.log('Mnemonic trouvé dans SESSION_BOT_MNEMONIC ou le fichier de configuration');
+    console.log('✅ Mnemonic chargé depuis la configuration');
 }
 
-// Configuration et démarrage du bot
-const session = new Session();
 session.setMnemonic(mnemonic, 'amicus');
-console.log("Bot's Session ID:", session.getSessionID());
+console.log("🤖 Bot Session ID:", session.getSessionID());
 
 session.addPoller(new Poller());
 
-session.on('message', async (message) => {
-    //console.log("Réception du message:", message.getContent());
 
+
+async function sendIPCMessage(message) {
+    return new Promise((resolve, reject) => {
+        const client = createConnection(SOCKET_PATH, () => {
+            console.log("📨 Connexion au serveur IPC établie !");
+            console.log("texte du message : ",message.text)
+            client.write(JSON.stringify(message) + "\n");  // 📩 Envoyer le message
+        });
+
+        client.on("data", (data) => {
+            console.log("✅ Réponse du serveur IPC :", data.toString());
+            resolve(true);
+            client.end();  // 🚪 Fermer la connexion proprement
+        });
+
+        client.on("error", (err) => {
+            console.error("❌ Erreur d'envoi IPC :", err);
+            reject(err);
+        });
+
+        client.on("end", () => {
+            console.log("🚪 Connexion IPC fermée.");
+        });
+    });
+}
+
+session.on('message', async (message) => {
     const decryptedAttachments = [];
 
-    // Parcourir chaque attachement reçu et le convertir en Base64
     for (const attachment of message.attachments) {
-        //console.log('Attachment reçu:', attachment);
-
-        // Obtenir l'attachement déchiffré en tant qu'ArrayBuffer ou Buffer
         const decryptedAttachment = await session.getFile(attachment);
- 
-        // Convertir l'ArrayBuffer en Base64
         const base64Content = await bufferToBase64(decryptedAttachment);
         decryptedAttachments.push({
             name: decryptedAttachment.name,
@@ -109,57 +147,55 @@ session.on('message', async (message) => {
         });
     }
 
- 
-    // Envoyer le message et les pièces jointes déchiffrées à bobot.py via WebSocket
-    if (bobotSocket && bobotSocket.readyState === WebSocket.OPEN) {
-        console.log("Envoi du message à bobot via WebSocket");
+    //console.log("******************************************",message.text)
+    const messageToSend = {
+        to: message.from,
+        from: session.getSessionID(),
+        text: message.text,
+        attachments: decryptedAttachments
+    };
 
-        const messageToSend = {
-            to: message.from,
-            from: session.getSessionID(),
-            text: message.text,
-            attachments: decryptedAttachments
-        };
-
-        console.log("Message envoyé à bobot:", JSON.stringify(messageToSend));
-        bobotSocket.send(JSON.stringify(messageToSend));
-    } else {
-        //console.log("Aucun client WebSocket connecté pour recevoir le message.");
+    try {
+        await sendIPCMessage(messageToSend);
+    } catch (err) {
+        console.error("🚨 Échec d'envoi du message à bobot.py :", err);
     }
 });
 
-// Fonction pour convertir un ArrayBuffer ou un Buffer en Base64
+// 📌 Ajouter un log quand la boucle d'événements se termine
+session.on('exit', (code) => {
+    console.log(`⚠️ Processus en train de se fermer avec le code : ${code}`);
+});
+
+session.on('uncaughtException', (err) => {
+    console.error("🔥 Exception non capturée :", err);
+});
+
+session.on('unhandledRejection', (reason, promise) => {
+    console.error("❌ Promesse rejetée sans gestion :", promise, "raison :", reason);
+});
+
+
+
+
+// 📌 Conversion Buffer en Base64
 async function bufferToBase64(buffer) {
-    // Si le fichier est un objet `File`, convertissez-le en ArrayBuffer
-    if (buffer instanceof File) {
-        buffer = await buffer.arrayBuffer();
-    }
-
-    // Si le fichier est maintenant un ArrayBuffer, convertissez-le en Buffer
-    if (buffer instanceof ArrayBuffer) {
-        buffer = Buffer.from(buffer);
-    }
-
-    // Convertir en Base64
+    if (buffer instanceof File) buffer = await buffer.arrayBuffer();
+    if (buffer instanceof ArrayBuffer) buffer = Buffer.from(buffer);
     return buffer.toString('base64');
 }
 
-function decodeBase64Content(base64Content) {
-    const buffer = Buffer.from(base64Content, 'base64');  // Décoder Base64 en Buffer
-    return buffer.toString('utf-8');  // Convertir le Buffer en chaîne de caractères
-}
-
-// Fonction pour convertir une chaîne Base64 en un objet File
+// 📌 Convertir une chaîne Base64 en fichier
 function base64ToFile(base64Content, fileName, mimeType) {
-    // Décoder la chaîne Base64 en ArrayBuffer
     const binaryString = atob(base64Content);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
         bytes[i] = binaryString.charCodeAt(i);
     }
-    const arrayBuffer = bytes.buffer;
-
-    // Créer un objet File à partir de l'ArrayBuffer
-    return new File([arrayBuffer], fileName, { type: mimeType });
+    return new File([bytes.buffer], fileName, { type: mimeType });
 }
+
+process.on("uncaughtException", (err) => {
+    console.error("🔥 Erreur fatale non capturée :", err);
+});

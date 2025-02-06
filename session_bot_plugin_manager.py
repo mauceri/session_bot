@@ -13,7 +13,7 @@ import yaml
 import base64
 
 import asyncio
-import websockets
+import socket
 
 from Interface.interfaces import IObservable, IObserver
 
@@ -34,13 +34,17 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
+SOCKET_PATH = "/tmp/session_bot.sock"  # Chemin du socket IPC
+
+
 class PluginManager:
     def __init__(self,root_dir=None,uri = "ws://localhost:8089"):
         """
         Args:
            config (Config): Paramètres de configuration pour le bot
         """
-        self.websocket = None
+        self.socket = None
         self.observers = {}
         self.plugins = {}
         self.root_dir = root_dir or os.getcwd()
@@ -143,26 +147,116 @@ class PluginManager:
     def unsubscribe(self, observer: IObserver):
         del self.observers[observer.prefix()]
 
-    async def initialize_websocket(self):
-        if self.websocket is None or self.websocket.closed:
-            self.websocket = await websockets.connect(self.config["websocket_uri"])
-            logger.info("Connexion WebSocket initialisée.")
+    
+    async def wait_for_socket(self,socket_path: str, retries: int = 10, delay: float = 1.0):
+ 
+        for _ in range(retries):
+            if os.path.exists(socket_path):
+                return True
+            print(f"🕐 Attente de la socket IPC... ({socket_path})")
+            time.sleep(delay)
+        print(f"❌ La socket IPC {socket_path} n'a pas été trouvée après plusieurs tentatives.")
+        return False
 
-    async def notify(self,message:str,to:str,attachments):
-        logger.info(f"***************************Notification du message {message}")
-                
-        message = {"from":to, "text":message,"frombobot":True,"attachments":attachments}     
+
+        """     async def initialize_socket(self):
+        if not await self.wait_for_socket(socket_path=SOCKET_PATH, retries=10, delay=1):
+            raise RuntimeError("Socket IPC non trouvée, impossible de se connecter.")
+
+        self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.socket.connect(SOCKET_PATH)
+        logger.info("✅ Connexion IPC Unix Socket initialisée.")
+        """
+
+    async def initialize_socket(self):
+        """Tente de se connecter à la socket IPC en boucle avant d'échouer."""
+        retries = 10
+        delay = 1  # secondes
+
+        for attempt in range(retries):
+            try:
+                if not os.path.exists(SOCKET_PATH):
+                    print(f"🕐 Tentative {attempt + 1}/{retries}: socket non trouvée, attente...")
+                    time.sleep(delay)
+                    continue
+
+                self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self.socket.connect(SOCKET_PATH)
+                logger.info("✅ Connexion IPC Unix Socket initialisée.")
+                return  # Sortie réussie
+
+            except ConnectionRefusedError:
+                print(f"⚠️ Tentative {attempt + 1}/{retries}: connexion refusée, attente...")
+                time.sleep(delay)
+
+        raise RuntimeError("❌ Impossible de se connecter à la socket IPC après plusieurs essais.")
+
+    async def notify(self, message: str, to: str, attachments):
+        logger.info(f"Envoi du message {message}")
+
+        data = {
+            "from": to,
+            "text": message,
+            "frombobot": True,
+            "attachments": attachments
+        }
         try:
-            message_json = json.dumps(message)
-            await self.websocket.send(message_json)
-            logger.info("Message renvoyé avec succès depuis bobot à session_bot")
-        except websockets.exceptions.ConnectionClosed as e:
-            logger.error(f"Connexion WebSocket fermée. Code: {e.code}, raison: {e.reason}")
-            self.websocket = None  # Réinitialisez la connexion pour la rouvrir si nécessaire
+            await self.send_to_session_bot(data)
         except Exception as e:
-            logger.error(f"Erreur lors de l'envoi du message depuis bobot: {e}")
+            logger.error(f"Erreur d'envoi du message à `session_bot.ts` : {e}")
+            self.socket = None
 
-        #await send_text_to_room(self.client,room.room_id,message)
+    async def send_message_to_session_bot(message):
+        """Envoie un message JSON à session_bot.ts via une socket UNIX."""
+        try:
+            reader, writer = await asyncio.open_unix_connection(SOCKET_PATH)
+            writer.write(json.dumps(message).encode() + b"\n")  # 📤 Envoi
+            await writer.drain()
+
+            response = await reader.read(4096)  # 📩 Lire la réponse
+            print(f"✅ Réponse reçue : {response.decode()}")
+
+            writer.close()
+            await writer.wait_closed()
+
+        except Exception as e:
+            print(f"❌ Erreur d'envoi du message : {e}")
+
+    async def handle_message(self):
+        """Gère la connexion IPC et traite les messages en continu."""
+        logger.info("✅ En attente des messages IPC...")
+
+        while True:
+            try:
+                logger.info("🔄 Tentative de connexion IPC...")
+                reader, writer = await asyncio.open_unix_connection(SOCKET_PATH)
+
+                while True:
+                    logger.info("Je vous écoute")
+                    data = await reader.read(4096)  # 📩 Lire un message du socket
+                    if not data:
+                        logger.warning("⚠️ Connexion fermée par le serveur, tentative de reconnexion...")
+                        break  # 🛑 Sortir de la boucle interne et relancer la connexion
+
+                    message = json.loads(data.decode())
+                    logger.info(f"📩 Message reçu de session_bot.ts: {message}")
+
+                    await self.message(message)  # Traiter le message
+
+            except FileNotFoundError:
+                logger.error("❌ Socket UNIX non trouvé, attente avant nouvelle tentative...")
+                await asyncio.sleep(2)
+
+            except ConnectionRefusedError:
+                logger.error("❌ Impossible de se connecter au socket UNIX, réessai dans 2s...")
+                await asyncio.sleep(2)
+
+            except Exception as e:
+                logger.error(f"❌ Erreur inattendue dans handle_message: {e}")
+                await asyncio.sleep(2)
+
+            finally:
+                logger.warning("🚪 Connexion IPC fermée, réessai en cours...")
 
     async def message(self, message):
         msg = message['text']
@@ -189,25 +283,10 @@ class PluginManager:
             await o.notify(msg,to, attachments)
         # else:
         #     logger.warning(f"****************************** perroquet n'est pas chargé")
-        
 
-    async def handle_message(self):
-    
-        await self.initialize_websocket()
-        logger.info(f"Prêt !")
-        try:
-            while True:
-                # Écouter les messages de session_bot
-                data = await self.websocket.recv()
-
-                message = json.loads(data)
-                logger.info(f"Message reçu de type {type(data)}")
-                await self.message(message)
-        except websockets.exceptions.ConnectionClosed as e:
-            print(f"Connexion WebSocket fermée. Code: {e.code}, Raison: {e.reason}")
-        finally:
-            print("Client WebSocket fermé proprement.")
-
+  
     async def run(self):
         # Lancer le bot asyncio
         await self.handle_message()
+
+
