@@ -15,6 +15,7 @@ import base64
 import asyncio
 import websockets
 
+from collections import defaultdict
 from Interface.interfaces import IObservable, IObserver
 
 
@@ -40,6 +41,8 @@ class PluginManager:
         Args:
            config (Config): Paramètres de configuration pour le bot
         """
+        self.partial_messages = defaultdict(lambda: {"chunks": {}, "received": 0, "total": 0})
+
         self.websocket = None
         self.observers = {}
         self.plugins = {}
@@ -70,6 +73,66 @@ class PluginManager:
         # Charger les plugins à partir du fichier YAML
         self.update_plugins()
         #self.run()
+
+    async def handle_message_in_chunks(self):
+        """
+        Reçoit les fragments sur 'websocket', les réassemble et renvoie l'objet JSON complet.
+        """
+        try:
+            sorted_chunks = []
+            while True:
+                raw_data = await self.websocket.recv()
+                chunk_obj = json.loads(raw_data)
+                logger.info(f"chunk obj {chunk_obj['index']}/{chunk_obj['total']}")
+                msg_id = chunk_obj["messageId"]
+                index = chunk_obj["index"]
+                total = chunk_obj["total"]
+                data_part = chunk_obj["data"]
+
+                self.partial_messages[msg_id]["chunks"][index] = data_part
+                self.partial_messages[msg_id]["received"] += 1
+                self.partial_messages[msg_id]["total"] = total
+
+                if self.partial_messages[msg_id]["received"] == total:
+                    # Reconstitution
+                    sorted_chunks = [
+                        self.partial_messages[msg_id]["chunks"][i]
+                            for i in range(total)
+                    ]
+                    full_str = "".join(sorted_chunks)
+                    final_message = json.loads(full_str)
+                    #logger.info("************************************** final_message {final_message}")
+                    # Nettoyage des données partielles
+                    del self.partial_messages[msg_id]
+
+                    # Traiter l'objet final reçu (final_message)
+                    # Exemple : print(final_message) ou autre traitement
+                    return final_message
+        except Exception as e:
+            logger.error(f"Erreur WebSocket: {e}")
+            return None
+
+    
+    async def send_json_in_chunks(self, message, chunk_size=1000000):
+        """
+            Découpe le JSON 'message' en fragments et les envoie par WebSocket.
+        """
+        message_str = json.dumps(message)
+        total_length = len(message_str)
+        message_id = str(id(message))  # ou tout autre identifiant
+
+        index = 0
+        while index < total_length:
+            chunk = message_str[index : index + chunk_size]
+            payload = {
+                "messageId": message_id,
+                "index": index // chunk_size,
+                "total": (total_length - 1) // chunk_size + 1,
+                "data": chunk,
+            }
+            await self.websocket.send(json.dumps(payload))
+            index += chunk_size
+
 
     def update_plugins(self):
          with open(self.path_yaml_plugin, 'r') as fichier:
@@ -149,12 +212,13 @@ class PluginManager:
             logger.info("Connexion WebSocket initialisée.")
 
     async def notify(self,message:str,to:str,attachments):
-        logger.info(f"***************************Notification du message {message}")
+        logger.info(f"***************************Notification du message {message} {attachments}")
                 
         message = {"from":to, "text":message,"frombobot":True,"attachments":attachments}     
         try:
             message_json = json.dumps(message)
-            await self.websocket.send(message_json)
+#            await self.websocket.send(message_json)
+            await self.send_json_in_chunks(message_json)
             logger.info("Message renvoyé avec succès depuis bobot à session_bot")
         except websockets.exceptions.ConnectionClosed as e:
             logger.error(f"Connexion WebSocket fermée. Code: {e.code}, raison: {e.reason}")
@@ -191,6 +255,7 @@ class PluginManager:
         #     logger.warning(f"****************************** perroquet n'est pas chargé")
         
 
+    
     async def handle_message(self):
     
         await self.initialize_websocket()
@@ -198,10 +263,9 @@ class PluginManager:
         try:
             while True:
                 # Écouter les messages de session_bot
-                data = await self.websocket.recv()
-
-                message = json.loads(data)
-                logger.info(f"Message reçu de type {type(data)}")
+                message = await self.handle_message_in_chunks()
+                logging.info(f"************************************ {message}")
+                #message = json.loads(data)
                 await self.message(message)
         except websockets.exceptions.ConnectionClosed as e:
             print(f"Connexion WebSocket fermée. Code: {e.code}, Raison: {e.reason}")

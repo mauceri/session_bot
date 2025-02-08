@@ -17,5 +17,8 @@
     "@session.js/mnemonic": "^1.0.4",
     "crypto-js": "^4.2.0",
     "file-api": "^0.10.4"
-  }
+  },
+  "trustedDependencies": [
+    "protobufjs"
+  ]
 }
