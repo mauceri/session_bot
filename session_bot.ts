@@ -62,7 +62,8 @@ function handleChunks(data) {
     console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$  Dans handleChunks");
     const chunkObj = JSON.parse(data);
     const { messageId, index, total, data: chunkData } = chunkObj;
-  
+    console.log("-------------------------------------------   ",index," ",total)
+
     if (!partialMessages[messageId]) {
       partialMessages[messageId] = {
         chunks: {},
@@ -94,6 +95,7 @@ function handleChunks(data) {
   
       const { from, text, frombobot, attachments } = actualMessage;
       
+      console.log("from: ",from,", text: ",text)
       if (!Array.isArray(attachments)) {
         console.error("Erreur: attachments n'est pas un tableau", attachments);
         return;

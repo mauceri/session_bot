@@ -68,11 +68,9 @@ class PluginManager:
 
         # Initialiser d'autres attributs si nécessaire
         self.observers = {}
-        self.plugins = {}
 
         # Charger les plugins à partir du fichier YAML
         self.update_plugins()
-        #self.run()
 
     async def handle_message_in_chunks(self):
         """
@@ -143,44 +141,49 @@ class PluginManager:
                 name = plugin['name']
                 url = plugin['url']
                 package = plugin['package']
-                
+                keep = False
                 if 'env' in plugin :
                     for env in  plugin['env']:
                         key, val = next(iter(env.items())) 
                         os.environ[key]=val
                 if plugin['enabled']:
-                    self.load_plugin(name,package,url,os.path.join(self.plugin_dir, name))
+                    plugin_path = os.path.join(self.plugin_dir, name)
+                    if('keep' in plugin and plugin['keep']):
+                        self.load_plugin(name,package,url,plugin_path=os.path.join(self.plugin_dir, name),keep=True)
+                    else:
+                        self.load_plugin(name,package,url,plugin_path=os.path.join(self.plugin_dir, name),keep=False)           
                 else:
                     self.unload_plugin(name)
 
 
-    def load_plugin(self, plugin_name, package, plugin_url, plugin_path):
+    def load_plugin(self, plugin_name, package, plugin_url, plugin_path, keep):
         try:
-            logger.info(f"********************************* Chargement de {plugin_name} sur {plugin_path}")
-            if plugin_name in self.plugins:
-                logger.info(f"Unoad {plugin_name}")
-                self.unload_plugin(plugin_name)
-            if os.path.isdir(plugin_path):
-                shutil.rmtree(plugin_path)
+            if keep == False:
+                logger.info(f"********************************* Chargement de {plugin_name} sur {plugin_path}")
+                if plugin_name in self.plugins:
+                    logger.info(f"Unoad {plugin_name}")
+                    self.unload_plugin(plugin_name)
+                if os.path.isdir(plugin_path):
+                    shutil.rmtree(plugin_path)
             
-            if not os.path.isdir(self.data_dir):
-                os.mkdir(self.data_dir)
-            self.unload_plugin(plugin_name)
-            sys.path.append(plugin_path)
-            sys.path.append(os.path.join(plugin_path, plugin_name))
-            logger.info(f"àààààààààààààààààààààà {sys.path}")
+                if not os.path.isdir(self.data_dir):
+                    os.mkdir(self.data_dir)
+                self.unload_plugin(plugin_name)
+                sys.path.append(plugin_path)
+                sys.path.append(os.path.join(plugin_path, plugin_name))
+                logger.info(f"àààààààààààààààààààààà {sys.path}")
 
-            # Vérifier si plugin_url est un chemin local ou une URL GitHub
-            if os.path.isdir(plugin_url):
-                # Cas d'un répertoire local
-                shutil.copytree(plugin_url, plugin_path)
-            else:
-                # Cas d'un dépôt GitHub
-                git.Repo.clone_from(plugin_url, plugin_path)
+                # Vérifier si plugin_url est un chemin local ou une URL GitHub
+                if os.path.isdir(plugin_url):
+                    # Cas d'un répertoire local
+                    shutil.copytree(plugin_url, plugin_path)
+                else:
+                    # Cas d'un dépôt GitHub
+                    git.Repo.clone_from(plugin_url, plugin_path)
 
-            # Intallation du plugin qui doit toujours être un dépôt git contenant un package du nom du plugin
-            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-            subprocess.run([sys.executable, "-m", "pip", "install", "-v", "-e", plugin_path])
+                # Intallation du plugin qui doit toujours être un dépôt git contenant un package du nom du plugin
+                subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+                subprocess.run([sys.executable, "-m", "pip", "install", "-v", "-e", plugin_path])
             module = importlib.import_module(plugin_name)
             self.plugins[plugin_name] = module.Plugin(self)  # Assumer une classe Plugin standard
             self.plugins[plugin_name].start()
@@ -212,8 +215,9 @@ class PluginManager:
             logger.info("Connexion WebSocket initialisée.")
 
     async def notify(self,message:str,to:str,attachments):
-        logger.info(f"***************************Notification du message {message} {attachments}")
-                
+        #logger.info(f"***************************Notification du message {message} {attachments}")
+        logger.info(f"***************************Notification du message {message}")
+                 
         message = {"from":to, "text":message,"frombobot":True,"attachments":attachments}     
         try:
             message_json = json.dumps(message)
@@ -232,7 +236,8 @@ class PluginManager:
         msg = message['text']
         to = message['to']
         attachments = message['attachments']
-        logger.info(f"message reçu {msg} {attachments}")
+        #logger.info(f"message reçu {msg} {attachments}")
+        logger.info(f"message reçu {msg}")
 
         # Extract the message text
         l = msg.split(' ')
