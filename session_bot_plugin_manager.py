@@ -253,11 +253,15 @@ class PluginManager:
             o = self.observers[cmd1]
         except:
             logger.warning(f"****************************** {cmd1} introuvable")
-        if o != None:
+        if o == None:
+            try:
+                o = self.observers["!c"]
+                msg = cmd1 + ' ' + msg 
+            except:
+                logger.warning(f"****************************** collect n'est pas chargé")  
+        if o != None:             
             message['text'] = msg
             await o.notify(msg,to, attachments)
-        # else:
-        #     logger.warning(f"****************************** perroquet n'est pas chargé")
         
 
     
