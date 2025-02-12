@@ -171,7 +171,7 @@ class PluginManager:
                 self.unload_plugin(plugin_name)
                 sys.path.append(plugin_path)
                 sys.path.append(os.path.join(plugin_path, plugin_name))
-                logger.info(f"àààààààààààààààààààààà {sys.path}")
+                logger.info(f"ààààààààààààààààààààààààààààààà {sys.path}")
 
                 # Vérifier si plugin_url est un chemin local ou une URL GitHub
                 if os.path.isdir(plugin_url):
