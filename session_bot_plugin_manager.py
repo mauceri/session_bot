@@ -148,7 +148,9 @@ class PluginManager:
                         os.environ[key]=val
                 if plugin['enabled']:
                     plugin_path = os.path.join(self.plugin_dir, name)
+                    logger.info(f"£££££££££££££££££££££££££££££££££££££££££ {plugin}")
                     if('keep' in plugin and plugin['keep']):
+                        logger.info(f"£££££££££££££££££££££££££££££££££££££££££ {plugin['keep']}")
                         self.load_plugin(name,package,url,plugin_path=os.path.join(self.plugin_dir, name),keep=True)
                     else:
                         self.load_plugin(name,package,url,plugin_path=os.path.join(self.plugin_dir, name),keep=False)           
@@ -158,7 +160,7 @@ class PluginManager:
 
     def load_plugin(self, plugin_name, package, plugin_url, plugin_path, keep):
         try:
-            if keep == False:
+            if not keep:
                 logger.info(f"********************************* Chargement de {plugin_name} sur {plugin_path}")
                 if plugin_name in self.plugins:
                     logger.info(f"Unoad {plugin_name}")

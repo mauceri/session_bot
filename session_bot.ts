@@ -58,7 +58,7 @@ interface PartialMessage {
   
 const partialMessages: { [messageId: string]: PartialMessage } = {};
   
-function handleChunks(data) {
+async function handleChunks(data) {
     console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$  Dans handleChunks");
     const chunkObj = JSON.parse(data);
     const { messageId, index, total, data: chunkData } = chunkObj;
@@ -107,8 +107,28 @@ function handleChunks(data) {
       });
       // Envoyer le message via Session
       
-      session.sendMessage({to: from,text: text, attachments: fileAttachments});
+      const { timestamp, messageHash } = await  session.sendMessage({to: from,text: text, attachments: fileAttachments});
 
+      // Planifier la suppression du message après 24 heures
+      const delay = 24 * 60 * 60 * 1000; // 24 heures en millisecondes
+
+      setTimeout(async () => {
+      try {
+          await session.deleteMessage({
+          to: from,
+          timestamp: timestamp,
+          hash: messageHash
+      });
+      console.log('Message supprimé avec succès après 24 heures.');
+  } catch (error) {
+    console.error('Erreur lors de la suppression du message :', error);
+  }
+}, delay);
+      /*await session.deleteMessage({
+        to: from,
+        timestamp: timestamp,
+        hash: messageHash
+      })*/
     }
   
     return null; // Pas encore complet
@@ -216,7 +236,7 @@ console.log("Bot's Session ID:", session.getSessionID());
 session.addPoller(new Poller());
 
 session.on('message', async (message) => {
-    //console.log("Réception du message:", message.getContent());
+    console.log("Réception du message:", message.getEnvelope().id);
 
     const decryptedAttachments = [];
 
