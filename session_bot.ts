@@ -8,11 +8,21 @@ import path from 'path';
 import WebSocket, { WebSocketServer } from 'ws';
 import { randomBytes, createCipheriv, createDecipheriv, createHash } from 'crypto';
 import * as fs from 'fs';
+import { sequelize, SessionMessage } from './db';
 
 
 // Attendre que les modules soient prêts
 await ready;
 
+
+// Utilisation de sequelize et Message
+sequelize.authenticate()
+  .then(() => {
+    console.log('Connexion établie avec succès.');
+  })
+  .catch(err => {
+    console.error('Impossible de se connecter à la base de données :', err);
+  });
 
 // Fonction pour convertir un ArrayBuffer ou un Buffer en Base64
 async function bufferToBase64(buffer) {
@@ -235,11 +245,30 @@ console.log("Bot's Session ID:", session.getSessionID());
 
 session.addPoller(new Poller());
 
+// Synchroniser le modèle avec la base de données
+await sequelize.sync();
+
+
 session.on('message', async (message) => {
-    console.log("Réception du message:", message.getEnvelope().id);
+    const messageId = message.id; // Récupérer l'ID unique du message
+    console.log("Réception du message:", messageId);
+
+      // Vérifier si le message est déjà dans la base
+    const existingMessage = await SessionMessage.findByPk(messageId);
+    if (existingMessage) {
+      console.log(`⏩ Message déjà traité : ${messageId}, ignoré.`);
+      return;
+    }
+    // Enregistrer l'ID du message
+    await SessionMessage.create({
+      messageId: messageId,
+      timestamp: new Date(),
+    });
+
+    console.log(`📩 Message reçu de ${message.from}: ${message.text}`);
+
 
     const decryptedAttachments = [];
-
     // Parcourir chaque attachement reçu et le convertir en Base64
     for (const attachment of message.attachments) {
         //console.log('Attachment reçu:', attachment);
