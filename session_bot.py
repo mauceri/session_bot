@@ -1,6 +1,5 @@
 import asyncio
-from session_bot_plugin_manager import PluginManager
-
+from plugin_manager import PluginManager
 
 #boucle asyncio
 if __name__ == "__main__":

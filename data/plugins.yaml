@@ -20,6 +20,7 @@ plugins:
     url : "https://github.com/mauceri/session_bot_collect"
     enabled : true
     keep : true
+    default : true
   # - name : "commandes"
   #   package : "amicus_bot_commandes"
   #   url : "https://github.com/mauceri/amicus_bot_commandes"

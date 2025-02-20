@@ -4,26 +4,18 @@ import logging
 import os
 import shutil
 import sys
-import time
 import git
 import subprocess
 import sys
-
 import yaml
-import base64
-
-import asyncio
 import websockets
-
+import os
+import logging
 from collections import defaultdict
 from Interface.interfaces import IObservable, IObserver
 
-
 logger = logging.getLogger(__name__)
 
-
-import os
-import logging
 # Configuration de base du logger
 logging.basicConfig(
     level=logging.INFO,  # Niveau minimal des messages à afficher (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -46,6 +38,8 @@ class PluginManager:
         self.websocket = None
         self.observers = {}
         self.plugins = {}
+        self.isDefaultPlugin = False
+        self.defaultPlugin = None
         self.root_dir = root_dir or os.getcwd()
         self.data_dir = os.path.join(self.root_dir, "data")
         self.plugin_dir = os.path.join(self.root_dir, "plugins")    
@@ -99,7 +93,6 @@ class PluginManager:
                     ]
                     full_str = "".join(sorted_chunks)
                     final_message = json.loads(full_str)
-                    #logger.info("************************************** final_message {final_message}")
                     # Nettoyage des données partielles
                     del self.partial_messages[msg_id]
 
@@ -142,18 +135,19 @@ class PluginManager:
                 url = plugin['url']
                 package = plugin['package']
                 keep = False
+                default = False
                 if 'env' in plugin :
                     for env in  plugin['env']:
                         key, val = next(iter(env.items())) 
                         os.environ[key]=val
                 if plugin['enabled']:
                     plugin_path = os.path.join(self.plugin_dir, name)
-                    logger.info(f"£££££££££££££££££££££££££££££££££££££££££ {plugin}")
                     if('keep' in plugin and plugin['keep']):
-                        logger.info(f"£££££££££££££££££££££££££££££££££££££££££ {plugin['keep']}")
-                        self.load_plugin(name,package,url,plugin_path=os.path.join(self.plugin_dir, name),keep=True)
-                    else:
-                        self.load_plugin(name,package,url,plugin_path=os.path.join(self.plugin_dir, name),keep=False)           
+                        keep = True
+                    if('default' in plugin and plugin['default']):
+                        self.isDefaultPlugin = True
+                        
+                    self.load_plugin(name,package,url,plugin_path=os.path.join(self.plugin_dir, name),keep=keep)           
                 else:
                     self.unload_plugin(name)
 
@@ -173,7 +167,6 @@ class PluginManager:
                 self.unload_plugin(plugin_name)
                 sys.path.append(plugin_path)
                 sys.path.append(os.path.join(plugin_path, plugin_name))
-                logger.info(f"ààààààààààààààààààààààààààààààà {sys.path}")
 
                 # Vérifier si plugin_url est un chemin local ou une URL GitHub
                 if os.path.isdir(plugin_url):
@@ -206,6 +199,10 @@ class PluginManager:
      
     def subscribe(self, observer: IObserver):
         logger.info(f"***************************Subscribe {observer.prefix()}")
+        if self.isDefaultPlugin :
+            self.defaultPlugin = observer
+            #self.isDefaultPlugin = False
+
         self.observers[observer.prefix()] = observer
 
     def unsubscribe(self, observer: IObserver):
@@ -217,9 +214,7 @@ class PluginManager:
             logger.info("Connexion WebSocket initialisée.")
 
     async def notify(self,message:str,to:str,attachments):
-        #logger.info(f"***************************Notification du message {message} {attachments}")
-        logger.info(f"***************************Notification du message {message}")
-                 
+        logger.info(f"***************************Notification du message {message}")                
         message = {"from":to, "text":message,"frombobot":True,"attachments":attachments}     
         try:
             message_json = json.dumps(message)
@@ -232,7 +227,6 @@ class PluginManager:
         except Exception as e:
             logger.error(f"Erreur lors de l'envoi du message depuis bobot: {e}")
 
-        #await send_text_to_room(self.client,room.room_id,message)
 
     async def message(self, message):
         msg = message['text']
@@ -248,8 +242,6 @@ class PluginManager:
         #le nouveau message est le reste
         msg = ' '.join(l[1:])
         
-        #si un objet est indexé par le préfixe de la commande on l'utilise
-        #print(f"****************************commande = {cmd1} et observers = {self.observers}")
         o = None;
         try:
             o = self.observers[cmd1]
@@ -257,26 +249,24 @@ class PluginManager:
             logger.warning(f"****************************** {cmd1} introuvable")
         if o == None:
             try:
-                o = self.observers["!c"]
-                msg = cmd1 + ' ' + msg 
+                if self.defaultPlugin != None:
+                    o = self.defaultPlugin
+                    msg = cmd1 + ' ' + msg 
+                else:
+                    logger.warning(f"****************************** pas de plugin par défaut") 
             except:
-                logger.warning(f"****************************** collect n'est pas chargé")  
+                logger.warning(f"****************************** pas de plugin par défaut")  
         if o != None:             
             message['text'] = msg
             await o.notify(msg,to, attachments)
-        
-
-    
+           
     async def handle_message(self):
-    
         await self.initialize_websocket()
         logger.info(f"Prêt !")
         try:
             while True:
                 # Écouter les messages de session_bot
                 message = await self.handle_message_in_chunks()
-                logging.info(f"************************************ {message}")
-                #message = json.loads(data)
                 await self.message(message)
         except websockets.exceptions.ConnectionClosed as e:
             print(f"Connexion WebSocket fermée. Code: {e.code}, Raison: {e.reason}")
