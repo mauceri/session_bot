@@ -5,4 +5,5 @@ __pycache__/
 tmp/
 session_bot_config.sh
 session_bot_phi_local
+session_messages.sqlite
 plugins/

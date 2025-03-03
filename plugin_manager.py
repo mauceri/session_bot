@@ -154,7 +154,7 @@ class PluginManager:
 
     def load_plugin(self, plugin_name, package, plugin_url, plugin_path, keep):
         try:
-            if not keep:
+            if not keep or not os.path.isdir(plugin_path):
                 logger.info(f"********************************* Chargement de {plugin_name} sur {plugin_path}")
                 if plugin_name in self.plugins:
                     logger.info(f"Unoad {plugin_name}")
