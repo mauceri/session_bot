@@ -10,6 +10,7 @@ import { randomBytes, createCipheriv, createDecipheriv, createHash } from 'crypt
 import * as fs from 'fs';
 import { sequelize, SessionMessage } from './db';
 
+const ROOT_DIR = process.env.ROOT_DIR || "/app"; // Valeur par défaut pour Docker
 
 // Attendre que les modules soient prêts
 await ready;
@@ -185,6 +186,8 @@ const wss = new WebSocketServer({
     host: '0.0.0.0',
     //maxPayload: 10 * 1024 * 1024 // Limite augmentée à 10 Mo (ça ne marche pas je suis tjrs limité à 1 Mo)
     });
+  console.log("✅ WebSocket Server démarré sur", wss.address());
+
 let bobotSocket: WebSocket | null = null; // Stocke la connexion WebSocket avec bobot
 
 wss.on('connection', (ws) => {
@@ -208,13 +211,21 @@ wss.on('connection', (ws) => {
 console.log("Serveur WebSocket démarré sur le port 8089");
 /*************************************** Début  */
 // Chemin vers le fichier de configuration
-const configFilePath = path.join(process.env.HOME || '', 'session_bot/session_bot_config.sh');
+if (!fs.existsSync(path.join(ROOT_DIR, 'data'))) {
+  fs.mkdirSync(path.join(ROOT_DIR, 'data'), { recursive: true });
+}
+const configFilePath = path.join(ROOT_DIR, 'data/session_bot_config.sh');
+const sessionIdPath = path.join(ROOT_DIR, 'data/session_id.txt');
 console.log('Chemin du fichier de configuration:', configFilePath);
 
 // Fonction pour sauvegarder le mnémonique dans un fichier dédié
+function saveSessionId(sessionId: string) {
+  fs.writeFileSync(sessionIdPath, sessionId, 'utf8');
+}
+// Fonction pour sauvegarder le mnémonique dans un fichier dédié
 function saveMnemonicToConfigFile(mnemonic: string) {
-    const envVarEntry = `export SESSION_BOT_MNEMONIC="${mnemonic}"\n`;
-    fs.writeFileSync(configFilePath, envVarEntry);
+  const envVarEntry = `export SESSION_BOT_MNEMONIC="${mnemonic}"\n`;
+  fs.writeFileSync(configFilePath, envVarEntry);
 }
 
 // Fonction pour charger le mnémonique à partir du fichier de configuration
@@ -240,8 +251,12 @@ if (!mnemonic) {
 
 // Configuration et démarrage du bot
 const session = new Session();
-session.setMnemonic(mnemonic, 'amicus');
+session.setMnemonic(mnemonic, 'test amicus');
 console.log("Bot's Session ID:", session.getSessionID());
+// Sauvegarde dans un fichier
+saveSessionId(session.getSessionID());
+console.log("Session ID saved to ",sessionIdPath);
+
 
 session.addPoller(new Poller());
 

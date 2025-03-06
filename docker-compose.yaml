@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  session_bot:
+    build: .
+    container_name: session_bot_test
+    restart: unless-stopped
+    environment:
+      - ROOT_DIR=/app
+    volumes:
+      - ./data:/app/data
+      - ./plugins:/app/plugins
+    ports:
+      - "8089:8089"
+#    user: "1000:1000"
+    extra_hosts:
+      - "sanroque:host-gateway"

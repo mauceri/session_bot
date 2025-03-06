@@ -154,7 +154,8 @@ class PluginManager:
 
     def load_plugin(self, plugin_name, package, plugin_url, plugin_path, keep):
         try:
-            if not keep or not os.path.isdir(plugin_path):
+#            if not keep or not os.path.isdir(plugin_path):
+            if not keep or not os.path.isdir(os.path.join(plugin_path, plugin_name)):
                 logger.info(f"********************************* Chargement de {plugin_name} sur {plugin_path}")
                 if plugin_name in self.plugins:
                     logger.info(f"Unoad {plugin_name}")
@@ -165,8 +166,6 @@ class PluginManager:
                 if not os.path.isdir(self.data_dir):
                     os.mkdir(self.data_dir)
                 self.unload_plugin(plugin_name)
-                sys.path.append(plugin_path)
-                sys.path.append(os.path.join(plugin_path, plugin_name))
 
                 # Vérifier si plugin_url est un chemin local ou une URL GitHub
                 if os.path.isdir(plugin_url):
@@ -176,9 +175,19 @@ class PluginManager:
                     # Cas d'un dépôt GitHub
                     git.Repo.clone_from(plugin_url, plugin_path)
 
-                # Intallation du plugin qui doit toujours être un dépôt git contenant un package du nom du plugin
-                subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-                subprocess.run([sys.executable, "-m", "pip", "install", "-v", "-e", plugin_path])
+            else:
+                logger.info(f"********************************* {os.path.join(plugin_path, plugin_name)} et keep = {keep} existe inutile de recharger {plugin_name}")
+
+            # Intallation du plugin qui doit toujours être un dépôt git contenant un package du nom du plugin
+            if plugin_path not in sys.path:
+                sys.path.append(plugin_path)
+            if os.path.join(plugin_path, plugin_name) not in sys.path:
+                sys.path.append(os.path.join(plugin_path, plugin_name))
+            if plugin_name in sys.modules:
+                del sys.modules[plugin_name]
+
+            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+            subprocess.run([sys.executable, "-m", "pip", "install", "-v", "--break-system-packages", "-e", plugin_path])
             module = importlib.import_module(plugin_name)
             self.plugins[plugin_name] = module.Plugin(self)  # Assumer une classe Plugin standard
             self.plugins[plugin_name].start()
