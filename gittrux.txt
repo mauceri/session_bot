@@ -1,0 +1,7 @@
+1558  eval $(ssh-agent -s)
+ 1559  ssh -T git@github.com*
+ 1560  ssh -T git@github.com
+ 1561  git push
+ 1562  ssh-add ~/.ssh/id_github
+ 1563  git push
+ 

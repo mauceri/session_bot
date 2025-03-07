@@ -7,11 +7,16 @@ services:
     restart: unless-stopped
     environment:
       - ROOT_DIR=/app
+      - HOST_IP=${HOST_IP}
     volumes:
       - ./data:/app/data
       - ./plugins:/app/plugins
     ports:
       - "8089:8089"
 #    user: "1000:1000"
+#    extra_hosts:
+#      - "sanroque:host-gateway"
+#    extra_hosts:
+#      - "hostmachine:${HOST_IP}"
     extra_hosts:
-      - "sanroque:host-gateway"
+      - "host.docker.internal:host-gateway"
