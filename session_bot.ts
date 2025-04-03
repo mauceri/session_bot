@@ -15,6 +15,7 @@ const ROOT_DIR = process.env.ROOT_DIR || "/app"; // Valeur par défaut pour Dock
 // Attendre que les modules soient prêts
 await ready;
 
+const client_name = process.env.CLIENT_NAME
 
 // Utilisation de sequelize et Message
 sequelize.authenticate()
@@ -251,7 +252,7 @@ if (!mnemonic) {
 
 // Configuration et démarrage du bot
 const session = new Session();
-session.setMnemonic(mnemonic, 'test amicus');
+session.setMnemonic(mnemonic, client_name);
 console.log("Bot's Session ID:", session.getSessionID());
 // Sauvegarde dans un fichier
 saveSessionId(session.getSessionID());

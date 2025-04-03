@@ -8,6 +8,10 @@ ROOT_DIR="${ROOT_DIR:-/app}"
 bun run "$ROOT_DIR/cleanup.ts" &
 CLEANUP_PID=$!
 
+if [ -z "$CLIENT_NAME" ]; then
+  echo "Erreur: la variable CLIENT_NAME n'est pas définie." >&2
+  exit 1
+fi
 # Lancer session_bot.ts avec Bun
 bun run "$ROOT_DIR/session_bot.ts" &
 SESSION_BOT_PID=$!

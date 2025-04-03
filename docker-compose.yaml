@@ -8,6 +8,7 @@ services:
     environment:
       - ROOT_DIR=/app
       - HOST_IP=${HOST_IP}
+      - CLIENT_NAME=${CLIENT_NAME:-default_client}
     volumes:
       - ./data:/app/data
       - ./plugins:/app/plugins
