@@ -1,6 +1,6 @@
-# Session echo bot
+# Session métat-robot
 
-This simple bot built with [Session.js](https://sessionjs.github.io/docs) echoes everything you send to it.
+Session bot est un méta-robot qui permet d'appeler des plugins depuis l'application session amager
 
 ## Run this example
 
@@ -10,9 +10,5 @@ This simple bot built with [Session.js](https://sessionjs.github.io/docs) echoes
 3. export CLIENT_NAME='secretarius' (secretarius est un exemple  pour de nom du robot dans session manager)
 4. docker compose up -d
 5. cat data/session_id.txt (pour avoir l'id permettant de discuter avec le robot depuis session messenger)
-6. 
+6. lancer session messenger et appeler un des plugins décrits dans data/plugins.yaml, par exemple : !echo répète ce que je dis; appelle le plugin test et renvoie la chaîne suivant !echo
 
-1. Download and install [bun](https://bun.sh)
-3. Run `bun install`
-4. Run `bun start`
-5. You should see random Session ID in console, write to it in Session
