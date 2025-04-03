@@ -3,7 +3,7 @@ version: '3.8'
 services:
   session_bot:
     build: .
-    container_name: session_bot_test
+    container_name: session_bot
     restart: unless-stopped
     environment:
       - ROOT_DIR=/app
