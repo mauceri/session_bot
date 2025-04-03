@@ -1,7 +1,7 @@
 plugins:
-  - name : "testp"
-    package : "testp"
-    url : "/home/mauceric/session_bot/test_plugin/"
+  - name : "test"
+    package : "test"
+    url : "https://github.com/mauceri/amicus_plugin_test"
     enabled : false
   - name : "phi_local"
     package : "phi_local"
