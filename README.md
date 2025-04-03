@@ -1,11 +1,10 @@
-# Session métat-robot
+# Un méta-robot Session
 
-Session bot est un méta-robot qui permet d'appeler des plugins depuis l'application session amager
+Session bot est un méta-robot qui permet d'appeler des robots décrits par des plugins depuis l'application session amager
 
 ## Run this example
 
-
-1. Clone this repository or download it as zip and go to `simple` subdirector
+1. Cloner ce dépôt
 2. cd session_bot
 3. export CLIENT_NAME='secretarius' (secretarius est un exemple  pour de nom du robot dans session manager)
 4. docker compose up -d
