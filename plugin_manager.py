@@ -156,7 +156,7 @@ class PluginManager:
         try:
 #            if not keep or not os.path.isdir(plugin_path):
             if not keep or not os.path.isdir(os.path.join(plugin_path, plugin_name)):
-                logger.info(f"********************************* Chargement de {plugin_name} sur {plugin_path}")
+                logger.info(f"********************************* Chargement de {plugin_url} sur {plugin_path}")
                 if plugin_name in self.plugins:
                     logger.info(f"Unoad {plugin_name}")
                     self.unload_plugin(plugin_name)
@@ -171,6 +171,7 @@ class PluginManager:
                 if os.path.isdir(plugin_url):
                     # Cas d'un répertoire local
                     shutil.copytree(plugin_url, plugin_path)
+                    #plugin_path = os.path.join(plugin_path, plugin_name)
                 else:
                     # Cas d'un dépôt GitHub
                     git.Repo.clone_from(plugin_url, plugin_path)
@@ -178,6 +179,7 @@ class PluginManager:
             else:
                 logger.info(f"********************************* {os.path.join(plugin_path, plugin_name)} et keep = {keep} existe inutile de recharger {plugin_name}")
 
+            
             # Intallation du plugin qui doit toujours être un dépôt git contenant un package du nom du plugin
             if plugin_path not in sys.path:
                 sys.path.append(plugin_path)
@@ -186,9 +188,19 @@ class PluginManager:
             if plugin_name in sys.modules:
                 del sys.modules[plugin_name]
 
+            logger.info(f"********************************* {os.path.join(plugin_path, plugin_name)}")
+            logger.info(f"*************  sys.path  ******************** {sys.path}")
             subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
             subprocess.run([sys.executable, "-m", "pip", "install", "-v", "--break-system-packages", "-e", plugin_path])
             module = importlib.import_module(plugin_name)
+            """
+            
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(plugin_name, os.path.join(plugin_path, plugin_name, "__init__.py"))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            """
+            logger.info(f"*************  module  ******************** {module}")
             self.plugins[plugin_name] = module.Plugin(self)  # Assumer une classe Plugin standard
             self.plugins[plugin_name].start()
         except Exception as err:

@@ -1,0 +1,9 @@
+# Depuis la racine du projet
+git checkout -b legacy
+git add .
+git commit -m "Code original avant refactorisation"
+git push origin legacy
+
+# Revenir sur main ou créer une branche de refactorisation
+git checkout main
+git checkout -b refactor-session-bot

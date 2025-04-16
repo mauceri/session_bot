@@ -1,11 +1,11 @@
 plugins:
-  - name : "test"
-    package : "test"
-    url : "https://github.com/mauceri/amicus_plugin_test"
-    enabled : false
+  - name : "testp"
+    package : "testp"
+    url : "/app/test_plugin"
+    enabled : true
   - name : "phi_local"
     package : "phi_local"
-    url : "/home/mauceric/session_bot/session_bot_phi_local"
+    url : "/app/session_bot_phi_local"
     enabled : false
   - name : "phi_local"
     package : "phi_local"
