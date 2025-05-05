@@ -159,7 +159,14 @@ async function main() {
       decryptedAttachments.push({ name: decryptedAttachment.name, type: decryptedAttachment.type, content: base64Content });
     }
     if (bobotSocket) {
-      await sendJsonInChunks(bobotSocket, { from: message.from, text: message.text, attachments: decryptedAttachments });
+      // Envoyer le message à bobot.py via WebSocket (chunked)
+      // 'to' est l'identifiant de session, 'from' est l'expéditeur
+      await sendJsonInChunks(bobotSocket, {
+        to: message.from,
+        from: session.getSessionID(),
+        text: message.text,
+        attachments: decryptedAttachments
+      });
     }
   });
 }
