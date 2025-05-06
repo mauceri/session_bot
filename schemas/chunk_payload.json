@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChunkPayload",
+  "type": "object",
+  "properties": {
+    "messageId": { "type": "string" },
+    "index": { "type": "integer", "minimum": 0 },
+    "total": { "type": "integer", "minimum": 1 },
+    "data": { "type": "string" }
+  },
+  "required": ["messageId", "index", "total", "data"],
+  "additionalProperties": false
+}

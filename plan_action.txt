@@ -1,0 +1,38 @@
+Phase 1 – Stabiliser le protocole et le typage
+• Extraire le protocole de fragmentation JSON (chunking) dans un module partagé TS/Python
+• Définir une interface JSON formelle (TypeScript interface + JSON Schema/Pydantic)
+• Activer strict: true dans tsconfig.json et typer tous les messages de bout en bout
+
+Phase 2 – Renforcer la validation et la robustesse
+• Ajouter une validation JSON en entrée dans Python (via jsonschema ou Pydantic)
+• Imposer des limites (taille max chunk, nombre max chunks en cours)
+• Gérer explicitement les erreurs de WS (timeouts, reconnexions, back-off)
+
+Phase 3 – Réorganisation du code
+• Découper le TS en :
+  – Module WS + chunker
+  – Module Session.js (broker)
+• Séparer en Python le loader/clone/git du manager d’exécution des plugins
+• Introduire un logger structuré (winston, pino ou logging en Python)
+
+Phase 4 – Qualité et tests automatisés
+• Écrire des tests unitaires TS pour :
+  – Chunker (round-trip JSON → fragments → JSON)
+  – Broker WS (mocks)
+• Écrire des tests unitaires Python pour :
+  – Validation JSON
+  – Cycle de vie plugin (load/unload)
+• Mettre en place un CI simple (GitHub Actions / GitLab CI) pour lancer les tests
+
+Phase 5 – Base de données & migrations
+• Remplacer le sync() automatique par un gestionnaire de migrations (umzug / sequelize-cli)
+• Versionner les changements de schéma dans des scripts de migration
+• Ajouter un test d’intégration DB (SQLite en mémoire)
+
+Phase 6 – Optimisation du déploiement
+• Alléger l’image Docker :
+  – Choisir Bun ou npm/Node, pas les deux
+  – Passer à une base Debian :bullseye ou :bookworm (pas latest)
+  – Ajouter grenier/ dans .dockerignore
+• Ajouter un Makefile ou justfile pour standardiser les commandes de build/dev
+• Documenter l’architecture dans le README et proposer un diagramme succinct

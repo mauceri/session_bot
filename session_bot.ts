@@ -8,6 +8,7 @@ import path from 'path';
 import WebSocket, { WebSocketServer } from 'ws';
 import * as fs from 'fs';
 import { sequelize, SessionMessage } from './db';
+import { chunkString, sendJsonInChunks } from './chunker';
 
 const ROOT_DIR = process.env.ROOT_DIR || "/app";
 const client_name = process.env.CLIENT_NAME;
@@ -34,11 +35,7 @@ export function base64ToFile(base64Content: string, fileName: string, mimeType: 
 }
 
 // --------- Utilitaires chunking ---------
-export function chunkString(str: string, size: number): string[] {
-  const chunks = [];
-  for (let i = 0; i < str.length; i += size) chunks.push(str.slice(i, i + size));
-  return chunks;
-}
+// chunkString moved to chunker.ts
 
 // --------- Gestion des fragments de messages ---------
 interface PartialMessage {
@@ -79,15 +76,7 @@ class MessageChunker {
   }
 }
 
-export async function sendJsonInChunks(socket: WebSocket, messageToSend: any, chunkSize = 256 * 1024) {
-  const fullString = JSON.stringify(messageToSend);
-  const chunks = chunkString(fullString, chunkSize);
-  const messageId = Date.now().toString();
-  chunks.forEach((chunk, index) => {
-    const payload = { messageId, index, total: chunks.length, data: chunk };
-    socket.send(JSON.stringify(payload));
-  });
-}
+// sendJsonInChunks moved to chunker.ts
 
 // --------- Gestion du mnémonique ---------
 const ensureDataDir = () => {

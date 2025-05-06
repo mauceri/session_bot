@@ -12,6 +12,9 @@ import websockets
 import os
 import logging
 from collections import defaultdict
+from chunker import handle_message_in_chunks as chunker_handle_message_in_chunks, send_json_in_chunks as chunker_send_json_in_chunks
+from pydantic import ValidationError
+from models import FullMessagePayload
 from Interface.interfaces import IObservable, IObserver
 
 logger = logging.getLogger(__name__)
@@ -67,62 +70,23 @@ class PluginManager:
         self.update_plugins()
 
     async def handle_message_in_chunks(self):
-        """
-        Reçoit les fragments sur 'websocket', les réassemble et renvoie l'objet JSON complet.
-        """
-        try:
-            sorted_chunks = []
-            while True:
-                raw_data = await self.websocket.recv()
-                chunk_obj = json.loads(raw_data)
-                logger.info(f"chunk obj {chunk_obj['index']}/{chunk_obj['total']}")
-                msg_id = chunk_obj["messageId"]
-                index = chunk_obj["index"]
-                total = chunk_obj["total"]
-                data_part = chunk_obj["data"]
-
-                self.partial_messages[msg_id]["chunks"][index] = data_part
-                self.partial_messages[msg_id]["received"] += 1
-                self.partial_messages[msg_id]["total"] = total
-
-                if self.partial_messages[msg_id]["received"] == total:
-                    # Reconstitution
-                    sorted_chunks = [
-                        self.partial_messages[msg_id]["chunks"][i]
-                            for i in range(total)
-                    ]
-                    full_str = "".join(sorted_chunks)
-                    final_message = json.loads(full_str)
-                    # Nettoyage des données partielles
-                    del self.partial_messages[msg_id]
-
-                    # Traiter l'objet final reçu (final_message)
-                    # Exemple : print(final_message) ou autre traitement
-                    return final_message
-        except Exception as e:
-            logger.error(f"Erreur WebSocket: {e}")
+        """Delegate to shared chunker implementation and validate JSON payload."""
+        raw_msg = await chunker_handle_message_in_chunks(self.websocket)
+        if not raw_msg:
             return None
+        try:
+            # Validate against Pydantic model
+            validated = FullMessagePayload.parse_obj(raw_msg)
+        except ValidationError as e:
+            logger.error(f"Invalid JSON payload received: {e}")
+            return None
+        # Return dict with correct field names ('from' alias handled)
+        return validated.dict(by_alias=True)
 
     
     async def send_json_in_chunks(self, message, chunk_size=1000000):
-        """
-            Découpe le JSON 'message' en fragments et les envoie par WebSocket.
-        """
-        message_str = json.dumps(message)
-        total_length = len(message_str)
-        message_id = str(id(message))  # ou tout autre identifiant
-
-        index = 0
-        while index < total_length:
-            chunk = message_str[index : index + chunk_size]
-            payload = {
-                "messageId": message_id,
-                "index": index // chunk_size,
-                "total": (total_length - 1) // chunk_size + 1,
-                "data": chunk,
-            }
-            await self.websocket.send(json.dumps(payload))
-            index += chunk_size
+        """Delegate to shared chunker implementation."""
+        return await chunker_send_json_in_chunks(self.websocket, message, chunk_size)
 
 
     def update_plugins(self):
