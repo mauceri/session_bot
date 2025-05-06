@@ -195,8 +195,19 @@ class PluginManager:
 
     async def initialize_websocket(self):
         if self.websocket is None or self.websocket.closed:
-            self.websocket = await websockets.connect(self.config["websocket_uri"])
-            logger.info("Connexion WebSocket initialisée.")
+            # Retry logic with exponential backoff
+            import asyncio
+            attempt = 0
+            while True:
+                try:
+                    self.websocket = await websockets.connect(self.config["websocket_uri"])
+                    logger.info("Connexion WebSocket initialisée.")
+                    break
+                except Exception as e:
+                    attempt += 1
+                    backoff = min(2 ** attempt, 30)
+                    logger.warning(f"WebSocket connexion échouée (tentative {attempt}), attente {backoff}s: {e}")
+                    await asyncio.sleep(backoff)
 
     async def notify(self,message:str,to:str,attachments):
         logger.info(f"***************************Notification du message {message}")                
@@ -248,15 +259,27 @@ class PluginManager:
     async def handle_message(self):
         await self.initialize_websocket()
         logger.info(f"Prêt !")
+        import asyncio
         try:
             while True:
-                # Écouter les messages de session_bot
-                message = await self.handle_message_in_chunks()
+                # Écouter les messages de session_bot avec timeout
+                try:
+                    message = await asyncio.wait_for(self.handle_message_in_chunks(), timeout=30)
+                except asyncio.TimeoutError:
+                    logger.warning("Timeout lors de la réception d'un message chunké, nouvelle tentative.")
+                    continue
+                except websockets.exceptions.ConnectionClosed as e:
+                    logger.error(f"Connexion WebSocket fermée pendant la réception: {e.code}, raison: {e.reason}")
+                    self.websocket = None
+                    await self.initialize_websocket()
+                    continue
+                if message is None:
+                    continue
                 await self.message(message)
         except websockets.exceptions.ConnectionClosed as e:
-            print(f"Connexion WebSocket fermée. Code: {e.code}, Raison: {e.reason}")
+            logger.error(f"Connexion WebSocket fermée. Code: {e.code}, raison: {e.reason}")
         finally:
-            print("Client WebSocket fermé proprement.")
+            logger.info("Client WebSocket fermé proprement.")
 
     async def run(self):
         # Lancer le bot asyncio
