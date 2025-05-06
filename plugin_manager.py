@@ -13,22 +13,33 @@ import os
 import logging
 from collections import defaultdict
 from chunker import handle_message_in_chunks as chunker_handle_message_in_chunks, send_json_in_chunks as chunker_send_json_in_chunks
+# Removed PluginLoader import (functionality reverted to built-in update_plugins)
 from pydantic import ValidationError
 from models import FullMessagePayload
 from Interface.interfaces import IObservable, IObserver
 
 logger = logging.getLogger(__name__)
 
-# Configuration de base du logger
-logging.basicConfig(
-    level=logging.INFO,  # Niveau minimal des messages à afficher (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # Format du message
-    handlers=[
-        logging.StreamHandler()  # Gère l'affichage des messages sur la sortie standard
-    ]
-)
+# Logger structuré en JSON
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        rec = {
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S.%fZ"),
+            "logger": record.name,
+            "level": record.levelname,
+            "message": record.getMessage()
+        }
+        if record.exc_info:
+            rec["exception"] = self.formatException(record.exc_info)
+        return json.dumps(rec)
 
-logger = logging.getLogger(__name__)
+# Configuration du logging global
+root_logger = logging.getLogger()
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(JSONFormatter())
+root_logger.handlers.clear()
+root_logger.addHandler(handler)
+root_logger.setLevel(logging.INFO)
 
 class PluginManager:
     def __init__(self,root_dir=None,uri = "ws://localhost:8089"):
@@ -65,7 +76,6 @@ class PluginManager:
 
         # Initialiser d'autres attributs si nécessaire
         self.observers = {}
-
         # Charger les plugins à partir du fichier YAML
         self.update_plugins()
 
@@ -266,7 +276,8 @@ class PluginManager:
                 try:
                     message = await asyncio.wait_for(self.handle_message_in_chunks(), timeout=30)
                 except asyncio.TimeoutError:
-                    logger.warning("Timeout lors de la réception d'un message chunké, nouvelle tentative.")
+                    # Pas de nouveau fragment reçu dans le délai : en mode veille, on continue sans spammer les logs
+                    logger.debug("Timeout lors de la réception d'un message chunké, nouvelle tentative.")
                     continue
                 except websockets.exceptions.ConnectionClosed as e:
                     logger.error(f"Connexion WebSocket fermée pendant la réception: {e.code}, raison: {e.reason}")
