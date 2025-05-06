@@ -5,6 +5,7 @@ import { generateSeedHex } from '@session.js/keypair';
 import { encode } from '@session.js/mnemonic';
 import { Session, ready, Poller } from '@session.js/client';
 import path from 'path';
+import { validateChunkPayload } from './validator';
 import WebSocket, { WebSocketServer } from 'ws';
 import * as fs from 'fs';
 import { sequelize, SessionMessage } from './db';
@@ -49,6 +50,11 @@ class MessageChunker {
 
   async handleChunks(data: string, session: any) {
     const chunkObj = JSON.parse(data);
+    // Validate incoming chunk structure
+    if (!validateChunkPayload(chunkObj)) {
+      console.error('Invalid chunk payload:', validateChunkPayload.errors);
+      return;
+    }
     const { messageId, index, total, data: chunkData } = chunkObj;
     if (!this.partialMessages[messageId]) {
       this.partialMessages[messageId] = { chunks: {}, received: 0, total: 0 };

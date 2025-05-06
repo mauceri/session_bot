@@ -18,7 +18,8 @@
     "crypto-js": "^4.2.0",
     "file-api": "^0.10.4",
     "sequelize": "^6.37.5",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "ajv": "^8.12.0"
   },
   "trustedDependencies": [
     "protobufjs"

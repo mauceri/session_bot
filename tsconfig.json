@@ -18,6 +18,9 @@
     // Best practices
     "strict": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "noFallthroughCasesInSwitch": true,
 
     // Some stricter flags (disabled by default)
